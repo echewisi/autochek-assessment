@@ -45,7 +45,7 @@ A comprehensive backend API built with NestJS for vehicle valuation and financin
 ### 1. Clone or Extract the Project
 
 ```bash
-cd autochek-api
+cd autochek-assessment
 ```
 
 ### 2. Install Dependencies
