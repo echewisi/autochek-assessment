@@ -276,8 +276,8 @@ export class DatabaseSeeder {
         maxLoanAmount: 25000000,
         minDownPaymentPercent: 10,
         minCreditScore: 700,
-        validFrom: now,
-        validUntil,
+        validFrom: JSON.stringify(now),
+        validUntil: JSON.stringify(validUntil),
         benefits: JSON.stringify(['No prepayment penalty', 'Flexible payment dates']),
       },
       {
@@ -289,13 +289,14 @@ export class DatabaseSeeder {
         maxLoanAmount: 20000000,
         minDownPaymentPercent: 15,
         minCreditScore: 650,
-        validFrom: now,
-        validUntil,
+        validFrom: JSON.stringify(now),
+        validUntil: JSON.stringify(validUntil),
         benefits: JSON.stringify(['Credit counseling included', 'Skip first payment']),
       },
     ];
 
     const offers = offerRepository.create(offersData);
+    console.log(offers);
     return await offerRepository.save(offers);
   }
 

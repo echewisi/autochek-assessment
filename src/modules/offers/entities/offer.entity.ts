@@ -46,11 +46,11 @@ export class Offer {
   })
   status: OfferStatus;
 
-  @Column({ type: 'datetime' })
-  validFrom: Date;
+  @Column({ type: 'date', nullable: true })
+  validFrom: string;
 
-  @Column({ type: 'datetime' })
-  validUntil: Date;
+  @Column({ type: 'date', nullable: true })
+  validUntil: string;
 
   @Column({ type: 'text', nullable: true })
   terms: string;

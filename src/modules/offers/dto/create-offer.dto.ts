@@ -70,11 +70,11 @@ export class CreateOfferDto {
 
   @ApiProperty({ description: 'Offer valid from date' })
   @IsDateString()
-  validFrom: Date;
+  validFrom: string;
 
   @ApiProperty({ description: 'Offer valid until date' })
   @IsDateString()
-  validUntil: Date;
+  validUntil: string;
 
   @ApiPropertyOptional({ description: 'Terms and conditions' })
   @IsOptional()

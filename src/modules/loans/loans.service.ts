@@ -44,8 +44,8 @@ export class LoansService {
       createLoanDto.vehicleId,
     );
     
-    if (vehicle) {
-      throw new BadRequestException(`Vehicle with ID ${createLoanDto.vehicleId} already exists`);
+    if (!vehicle) {
+      throw new BadRequestException(`Vehicle with ID ${createLoanDto.vehicleId} does not exist!`);
     }
 
     // Get latest valuation or create one
@@ -79,8 +79,14 @@ export class LoansService {
         createLoanDto.creditScore,
       );
 
+    // Use financed amount (requested - downPayment) for payment and ratios
+    const financedAmount = Math.max(
+      0,
+      createLoanDto.requestedAmount - createLoanDto.downPayment,
+    );
+
     const monthlyPayment = this.eligibilityService.calculateMonthlyPayment(
-      createLoanDto.requestedAmount,
+      financedAmount,
       interestRate,
       createLoanDto.loanTermMonths,
     );
@@ -90,9 +96,15 @@ export class LoansService {
       createLoanDto.loanTermMonths,
     );
 
-    const ltvRatio = createLoanDto.requestedAmount / Number(vehicleValue);
-    const dtiRatio =
-      (monthlyPayment / createLoanDto.monthlyIncome);
+    const ltvRatio = financedAmount / Number(vehicleValue);
+    if (ltvRatio > 5) {
+      this.logger.warn('Unrealistic LTV ratio detected', { ltvRatio, vehicleValue });
+    }
+
+    const dtiRatio = monthlyPayment / createLoanDto.monthlyIncome;
+    if (dtiRatio > 1) {
+      this.logger.warn('Unrealistic DTI ratio detected', { dtiRatio, monthlyPayment });
+    }
 
     // Create loan application
     const loan = this.loanRepository.create({
@@ -101,7 +113,7 @@ export class LoansService {
         ? LoanStatus.UNDER_REVIEW
         : LoanStatus.REJECTED,
       approvedAmount: eligibilityResult.isEligible
-        ? createLoanDto.requestedAmount
+        ? financedAmount
         : undefined,
       interestRate,
       monthlyPayment,

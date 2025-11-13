@@ -14,7 +14,8 @@ import { Vehicle } from '../vehicles/entities/vehicle.entity';
 import { VehicleCondition } from '../../common/enums/vehicle-condition.enum';
 import { LoggerUtil } from '../../common/utils/logger.util';
 import { ValuationFactors } from './interfaces/vin-lookup-response.interface';
-
+import axios, { AxiosInstance } from 'axios';
+import { ConfigService } from '@nestjs/config';
 /**
  * Service handling vehicle valuation logic
  * Integrates with VIN decoder and implements valuation algorithms
@@ -22,6 +23,10 @@ import { ValuationFactors } from './interfaces/vin-lookup-response.interface';
 @Injectable()
 export class ValuationsService {
   private readonly logger = new LoggerUtil('ValuationsService');
+  private axiosInstance: AxiosInstance;
+  private apiKey: string;
+  private apiHost: string;
+  private usdToLocalRate: number;
 
   // Base depreciation rates by vehicle age
   private readonly depreciationRates = {
@@ -47,7 +52,22 @@ export class ValuationsService {
     private valuationRepository: Repository<Valuation>,
     private vinDecoderService: VinDecoderService,
     private vehiclesService: VehiclesService,
-  ) {}
+    private configService: ConfigService,
+  ) {
+    this.apiKey = this.configService.get<string>('rapidApiKey') || '';
+    this.apiHost = this.configService.get<string>('rapidApiHost') || '';
+    this.usdToLocalRate =
+      this.configService.get<number>('currency.usdToLocalRate') || 1;
+
+    // Configure axios instance for external API
+    this.axiosInstance = axios.create({
+      baseURL: `https://${this.apiHost}`,
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`,
+      },
+      timeout: 10000, // 10 second timeout
+    });
+  }
 
   /**
    * Request vehicle valuation
@@ -116,8 +136,9 @@ export class ValuationsService {
       ...options,
     });
 
-    // Get base value from VIN data or estimate
-    const baseValue = await this.getBaseValue(vehicle);
+    // Get base value from VIN data or estimate (assumed USD), then convert to local currency
+    const baseValueUsd = await this.getBaseValue(vehicle);
+    const baseValue = baseValueUsd * this.usdToLocalRate;
     const currentYear = new Date().getFullYear();
     const vehicleAge = currentYear - vehicle.year;
 
@@ -192,13 +213,21 @@ export class ValuationsService {
    * Get base value for vehicle (from MSRP or database)
    */
   private async getBaseValue(vehicle: Vehicle): Promise<number> {
-    // If purchase price is available, use it
-    if (vehicle.purchasePrice && vehicle.purchasePrice > 0) {
-      return vehicle.purchasePrice;
+    try {
+      const response = await this.axiosInstance.get('/vehicle-pricing', {
+        params: { make: vehicle.make, model: vehicle.model, year: vehicle.year },
+      });
+
+      if (response.data && response.data.baseValue) {
+        const baseValue = Number(response.data.baseValue);
+        this.logger.log('Base value fetched', { vehicleId: vehicle.id, baseValue });
+        return baseValue;
+      }
+    } catch (error) {
+      this.logger.error('Failed to fetch base value from API', error);
     }
 
-    // Otherwise estimate based on make/model/year
-    // This would typically come from a pricing database
+    // Fallback to hardcoded values
     const baseValues = {
       toyota: 28000,
       honda: 27000,

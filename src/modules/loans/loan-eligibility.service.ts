@@ -83,8 +83,9 @@ export class LoanEligibilityService {
       );
     }
 
-    // 2. Loan-to-Value Ratio Check
-    const ltvRatio = requestedAmount / vehicleValue;
+    // 2. Loan-to-Value Ratio Check (use financed amount = requested - downPayment)
+    const financedAmount = Math.max(0, requestedAmount - downPayment);
+    const ltvRatio = financedAmount / vehicleValue;
     result.checks.loanToValue.value = ltvRatio;
 
     if (ltvRatio <= this.loanConfig.maxLoanToValueRatio) {
@@ -112,7 +113,7 @@ export class LoanEligibilityService {
     // 4. Debt-to-Income Ratio Check
     const interestRate = this.determineInterestRate(creditScore);
     const monthlyPayment = this.calculateMonthlyPayment(
-      requestedAmount,
+      financedAmount,
       interestRate,
       loanTermMonths,
     );
@@ -184,13 +185,15 @@ export class LoanEligibilityService {
     months: number,
   ): number {
     if (annualRate === 0) {
-      return principal / months;
+      return Math.round((principal / months) * 100) / 100;
     }
 
     const monthlyRate = annualRate / 12;
     const payment =
       (principal * monthlyRate * Math.pow(1 + monthlyRate, months)) /
       (Math.pow(1 + monthlyRate, months) - 1);
+
+    this.logger.log('Monthly payment calculated', { principal, annualRate, months, payment });
 
     return Math.round(payment * 100) / 100;
   }

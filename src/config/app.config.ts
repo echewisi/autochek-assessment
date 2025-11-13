@@ -28,4 +28,9 @@ export const appConfig = () => ({
       poor: 0.18, // 18% for credit score >= 600
     },
   },
+
+  // Currency configuration
+  currency: {
+    usdToLocalRate: parseFloat(process.env.USD_TO_LOCAL_RATE || '') || 1500, // default NGN rate
+  },
 });
